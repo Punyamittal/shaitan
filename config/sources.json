@@ -1,0 +1,6 @@
+{
+  "claudeCodeSource": "../claude-code",
+  "skillsSource": "./skills",
+  "vectorlessSource": "../vectorless",
+  "templatesSource": "./templates"
+}

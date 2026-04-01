@@ -1,0 +1,19 @@
+{
+  "name": "local-ai-ide",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w @local-ai-ide/web",
+    "dev:web:clean": "npm run dev:clean -w @local-ai-ide/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

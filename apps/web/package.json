@@ -1,0 +1,39 @@
+{
+  "name": "@local-ai-ide/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\"",
+    "predev": "node scripts/ensure-next-artifacts.mjs",
+    "dev": "node server.mjs",
+    "dev:next-only": "next dev",
+    "dev:clean": "npm run clean && node server.mjs",
+    "build": "next build",
+    "start": "node server.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@local-ai-ide/agent": "0.1.0",
+    "@local-ai-ide/mcp-client": "0.1.0",
+    "@local-ai-ide/ollama-client": "0.1.0",
+    "@local-ai-ide/skills-runtime": "0.1.0",
+    "@local-ai-ide/template-engine": "0.1.0",
+    "@local-ai-ide/tools": "0.1.0",
+    "@local-ai-ide/vectorless-engine": "0.1.0",
+    "@monaco-editor/react": "^4.7.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "monaco-editor": "^0.52.2",
+    "next": "^15.2.4",
+    "node-pty": "^1.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.8.3"
+  }
+}

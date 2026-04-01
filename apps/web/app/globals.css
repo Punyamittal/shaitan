@@ -1,0 +1,63 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family:
+    "Segoe UI",
+    "Inter",
+    system-ui,
+    sans-serif;
+  font-size: 13px;
+  color: var(--ide-fg);
+  background: var(--ide-bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.ide-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:root {
+  --ide-bg: #1e1e1e;
+  --ide-bg-elevated: #252526;
+  --ide-bg-hover: #2a2d2e;
+  --ide-bg-active: #37373d;
+  --ide-border: #3c3c3c;
+  --ide-fg: #cccccc;
+  --ide-fg-muted: #858585;
+  --ide-input-bg: #3c3c3c;
+  --ide-terminal-bg: #1e1e1e;
+
+  /* Semantic UX colors */
+  --color-ai-primary: #2563eb;
+  --color-ai-modify: #7c3aed;
+  --color-warning: #eab308;
+  --color-error: #dc2626;
+  --color-success: #22c55e;
+  --color-neutral: #9ca3af;
+
+  --panel-explorer-width: min(280px, 32vw);
+  --panel-ai-width: min(400px, 36vw);
+  --panel-terminal-height: 200px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* xterm hides its input with 0×0; some Chromium builds won’t keep focus/typing working. */
+.ide-terminal-host .xterm .xterm-helper-textarea {
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 1px !important;
+  min-height: 1px !important;
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "name": "modern-navbar",
+    "tags": ["navbar", "topnav", "product"],
+    "framework": "react",
+    "style": "clean",
+    "file": "navbar/ModernNavbar.tsx"
+  },
+  {
+    "name": "gradient-hero",
+    "tags": ["hero", "landing", "marketing"],
+    "framework": "react",
+    "style": "vibrant",
+    "file": "hero/GradientHero.tsx"
+  },
+  {
+    "name": "analytics-dashboard",
+    "tags": ["dashboard", "saas", "metrics"],
+    "framework": "react",
+    "style": "professional",
+    "file": "dashboard/AnalyticsDashboard.tsx"
+  }
+]
