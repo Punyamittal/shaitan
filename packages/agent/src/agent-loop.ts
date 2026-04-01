@@ -32,11 +32,30 @@ export interface AgentRunInput {
   userPrompt: string;
   cwd: string;
   maxSteps?: number;
+  /** Browser session id (`ide-session` cookie) to target the integrated PTY. */
+  terminalSessionId?: string | null;
 }
 
 export interface AgentRunOutput {
   finalText: string;
   toolResults: ToolResult[];
+}
+
+/** Keep tool lines in chat history bounded so the next Ollama request stays parse-safe. */
+const MAX_TOOL_MESSAGE_CHARS = 80_000;
+
+function truncateForChat(s: string): string {
+  if (s.length <= MAX_TOOL_MESSAGE_CHARS) return s;
+  const n = s.length - MAX_TOOL_MESSAGE_CHARS;
+  return `${s.slice(0, MAX_TOOL_MESSAGE_CHARS)}\n\n...[truncated ${n} characters from tool output]`;
+}
+
+/**
+ * Models sometimes emit Windows paths or broken escapes; JSON requires \\u + 4 hex digits.
+ * Turn invalid \\u into a literal backslash + "u..." so JSON.parse can succeed.
+ */
+function repairInvalidJsonUnicodeEscapes(jsonText: string): string {
+  return jsonText.replace(/\\u(?![0-9a-fA-F]{4})/gi, "\\\\u");
 }
 
 export class AgentCore {
@@ -67,9 +86,10 @@ export class AgentCore {
           "You are a local AI coding agent. If a tool is needed, return JSON: " +
           '{"action":"tool","tool":"ToolName","input":{}} or {"action":"mcp","tool":"server.tool","input":{}}. ' +
           "When done, return {\"action\":\"final\",\"content\":\"...\"}. " +
-          "Tool names (exact): FileReadTool, FileWriteTool, FileEditTool, GrepTool, BashTool. " +
+          "Tool names (exact): FileReadTool, FileWriteTool, FileEditTool, GrepTool, TerminalTool, BashTool. " +
           `All file and shell tools run with cwd = ${JSON.stringify(input.cwd)}. ` +
-          "If vectorless context says there are no candidate files, the workspace may still contain many files — use BashTool (e.g. dir on Windows, ls on Unix) or FileReadTool on paths from the user message before concluding the folder is empty."
+          "Use TerminalTool to run shell commands (npm, git, tests, build): it executes in the user's integrated terminal when connected so they see the command and output; otherwise it runs as a subprocess. Use BashTool only if you need a quiet subprocess without the live terminal. " +
+          "If vectorless context says there are no candidate files, the workspace may still contain many files — use TerminalTool or BashTool (e.g. dir on Windows, ls on Unix) or FileReadTool on paths from the user message before concluding the folder is empty."
       },
       { role: "system", content: skillPrompt },
       { role: "system", content: vectorlessContext },
@@ -112,12 +132,12 @@ export class AgentCore {
       }
 
       if (action.action === "tool") {
-        const result = await this.runTool(action, input.cwd);
+        const result = await this.runTool(action, input.cwd, input.terminalSessionId);
         toolResults.push(result);
         messages.push({
           role: "tool",
           name: action.tool,
-          content: result.output
+          content: truncateForChat(result.output)
         });
         continue;
       }
@@ -127,7 +147,7 @@ export class AgentCore {
       messages.push({
         role: "tool",
         name: action.tool,
-        content: mcpOutput
+        content: truncateForChat(mcpOutput)
       });
     }
 
@@ -137,11 +157,15 @@ export class AgentCore {
     };
   }
 
-  private async runTool(call: ToolCall, cwd: string): Promise<ToolResult> {
+  private async runTool(
+    call: ToolCall,
+    cwd: string,
+    terminalSessionId?: string | null
+  ): Promise<ToolResult> {
     try {
       const tool = this.deps.tools.get(call.tool);
       const input = tool.inputSchema.parse(call.input);
-      const output = await tool.execute(input, { cwd });
+      const output = await tool.execute(input, { cwd, terminalSessionId });
       return { ok: true, tool: call.tool, output };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -151,10 +175,17 @@ export class AgentCore {
 }
 
 function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    const fromFence = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(fromFence);
+  const candidates = [text.trim(), text.replace(/```json|```/g, "").trim()].filter(Boolean);
+  for (const c of candidates) {
+    try {
+      return JSON.parse(c);
+    } catch {
+      try {
+        return JSON.parse(repairInvalidJsonUnicodeEscapes(c));
+      } catch {
+        /* try next candidate */
+      }
+    }
   }
+  throw new SyntaxError("Could not parse model JSON");
 }

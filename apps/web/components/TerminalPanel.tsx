@@ -6,15 +6,35 @@ import { useCallback, useEffect, useRef } from "react";
 
 import "@xterm/xterm/css/xterm.css";
 
+/** When Monaco/body still holds focus after clicking the terminal, inject this stroke into xterm. */
+function keyEventToTerminalData(e: KeyboardEvent): string | null {
+  if (e.isComposing) return null;
+  if (e.key === "Enter") return "\r";
+  if (e.key === "Backspace") return "\u007f";
+  if (e.key === "Tab") return "\t";
+  if (e.key === "Escape") return "\u001b";
+  if (e.key === "ArrowUp") return "\u001b[A";
+  if (e.key === "ArrowDown") return "\u001b[B";
+  if (e.key === "ArrowRight") return "\u001b[C";
+  if (e.key === "ArrowLeft") return "\u001b[D";
+  if (e.key === "Delete") return "\u001b[3~";
+  if (e.key === "Home") return "\u001b[H";
+  if (e.key === "End") return "\u001b[F";
+  if (e.key === " ") return " ";
+  if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) return e.key;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && !e.shiftKey) return "\x03";
+  return null;
+}
+
 function wsUrl(): string {
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${proto}//${window.location.host}/_terminal/ws`;
 }
 
-function focusXterm(term: Terminal, container: HTMLElement) {
+function focusXterm(term: Terminal) {
   term.focus();
-  const ta = container.querySelector(".xterm-helper-textarea");
-  if (ta instanceof HTMLTextAreaElement) {
+  const ta = term.textarea;
+  if (ta) {
     ta.focus({ preventScroll: true });
   }
 }
@@ -30,6 +50,7 @@ export function TerminalPanel({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const surfaceActiveRef = useRef(false);
 
   const clearTerminal = useCallback(() => {
     termRef.current?.clear();
@@ -45,6 +66,7 @@ export function TerminalPanel({
       fontFamily: "Consolas, 'Courier New', monospace",
       fontSize: 12,
       screenReaderMode: false,
+      disableStdin: false,
       theme: {
         background: "#1e1e1e",
         foreground: "#cccccc",
@@ -55,11 +77,16 @@ export function TerminalPanel({
     term.loadAddon(fit);
     term.open(container);
     termRef.current = term;
-    fit.fit();
-    focusXterm(term, container);
-
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
     let closed = false;
+
+    fit.fit();
+    focusXterm(term);
+    requestAnimationFrame(() => {
+      if (closed) return;
+      fit.fit();
+      focusXterm(term);
+    });
 
     const sendResize = () => {
       const ws = wsRef.current;
@@ -79,15 +106,72 @@ export function TerminalPanel({
       }
     });
 
-    const grabFocus = (e: PointerEvent) => {
-      if (e.button !== 0) return;
-      queueMicrotask(() => {
-        if (!closed) focusXterm(term, container);
-      });
+    // Track “user is using the terminal” vs rest of IDE (for keyboard fallback).
+    const onDocMouseDownCapture = (e: MouseEvent) => {
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      if (container.contains(t)) surfaceActiveRef.current = true;
+      else if (host && !host.contains(t)) surfaceActiveRef.current = false;
     };
 
-    host?.addEventListener("pointerdown", grabFocus, true);
-    container.addEventListener("pointerdown", grabFocus, true);
+    // Only on the xterm mount node (not the toolbar): blur anything that still owns focus
+    // (Monaco hidden textarea, AI composer, etc.), then focus xterm.
+    const grabFocusMouse = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      const t = e.target;
+      if (!(t instanceof Node) || !container.contains(t)) return;
+      const ae = document.activeElement;
+      if (ae instanceof HTMLElement && !container.contains(ae)) {
+        ae.blur();
+      }
+      if (!closed) focusXterm(term);
+    };
+
+    document.addEventListener("mousedown", onDocMouseDownCapture, true);
+    container.addEventListener("mousedown", grabFocusMouse, true);
+
+    const onWindowKeyDownCapture = (e: KeyboardEvent) => {
+      if (closed || !surfaceActiveRef.current) return;
+      const ta = term.textarea;
+      if (!ta || document.activeElement === ta) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") return;
+
+      const ae = document.activeElement;
+      if (ae instanceof Element && ae.closest("[data-ide-ai-panel]")) return;
+
+      const monacoFocused = ae instanceof Element && ae.closest(".monaco-editor");
+      const nowhereFocused =
+        ae === null ||
+        ae === document.body ||
+        ae === document.documentElement;
+      if (!monacoFocused && !nowhereFocused) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        ta.focus({ preventScroll: true });
+        void navigator.clipboard.readText().then((text) => {
+          if (!closed && text) term.paste(text);
+        });
+        return;
+      }
+
+      const data = keyEventToTerminalData(e);
+      if (data === null) {
+        if (["Control", "Shift", "Alt", "Meta", "CapsLock", "ContextMenu"].includes(e.key)) {
+          ta.focus({ preventScroll: true });
+        }
+        return;
+      }
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      ta.focus({ preventScroll: true });
+      term.input(data, true);
+    };
+
+    window.addEventListener("keydown", onWindowKeyDownCapture, true);
 
     if (!workspaceLinked) {
       if (!projectOpen) {
@@ -105,8 +189,9 @@ export function TerminalPanel({
       roIdle.observe(container);
       return () => {
         closed = true;
-        host?.removeEventListener("pointerdown", grabFocus, true);
-        container.removeEventListener("pointerdown", grabFocus, true);
+        document.removeEventListener("mousedown", onDocMouseDownCapture, true);
+        window.removeEventListener("keydown", onWindowKeyDownCapture, true);
+        container.removeEventListener("mousedown", grabFocusMouse, true);
         roIdle.disconnect();
         term.dispose();
         termRef.current = null;
@@ -121,7 +206,7 @@ export function TerminalPanel({
       ws.onopen = () => {
         term.writeln("\x1b[90mShell in your linked project folder (PTY).\x1b[0m\r\n");
         sendResize();
-        requestAnimationFrame(() => focusXterm(term, container));
+        requestAnimationFrame(() => focusXterm(term));
       };
 
       ws.onmessage = (ev: MessageEvent<string | Blob>) => {
@@ -155,8 +240,9 @@ export function TerminalPanel({
 
     return () => {
       closed = true;
-      host?.removeEventListener("pointerdown", grabFocus, true);
-      container.removeEventListener("pointerdown", grabFocus, true);
+      document.removeEventListener("mousedown", onDocMouseDownCapture, true);
+      window.removeEventListener("keydown", onWindowKeyDownCapture, true);
+      container.removeEventListener("mousedown", grabFocusMouse, true);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       const w = wsRef.current;
       wsRef.current = null;
@@ -179,7 +265,8 @@ export function TerminalPanel({
         display: "flex",
         flexDirection: "column",
         height: "var(--panel-terminal-height)",
-        minHeight: 140,
+        minHeight: "var(--panel-terminal-height)",
+        maxHeight: "var(--panel-terminal-height)",
         borderTop: "1px solid var(--ide-border)",
         background: "var(--ide-terminal-bg)",
         flexShrink: 0
@@ -218,6 +305,7 @@ export function TerminalPanel({
       </div>
       <div
         ref={containerRef}
+        data-ide-terminal-surface
         role="presentation"
         style={{
           flex: 1,

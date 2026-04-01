@@ -31,11 +31,13 @@ export async function GET() {
     } catch {
       suggested = "";
     }
-    return NextResponse.json({
+    const res = NextResponse.json({
       root,
       name: root ? path.basename(root) : null,
       suggestedPath: suggested
     });
+    await ensureSessionCookie(res);
+    return res;
   } catch (e) {
     return NextResponse.json({
       root: null,

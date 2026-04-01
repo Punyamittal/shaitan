@@ -16,8 +16,10 @@ import {
   FileReadTool,
   FileWriteTool,
   GrepTool,
+  TerminalTool,
   ToolRegistry
 } from "@local-ai-ide/tools";
+import { cookies } from "next/headers";
 import { VectorlessSelector } from "@local-ai-ide/vectorless-engine";
 
 const MAX_CONTEXT = 200_000;
@@ -118,6 +120,7 @@ export async function POST(req: Request) {
     tools.register(new FileWriteTool());
     tools.register(new FileEditTool());
     tools.register(new GrepTool());
+    tools.register(new TerminalTool());
     tools.register(new BashTool());
 
     const skills = new SkillLoader(join(workspaceRoot, "skills"));
@@ -140,9 +143,13 @@ export async function POST(req: Request) {
       mcp
     });
 
+    const cookieStore = await cookies();
+    const terminalSessionId = cookieStore.get("ide-session")?.value ?? null;
+
     const result = await agent.run({
       userPrompt: composed,
-      cwd: workspaceRoot
+      cwd: workspaceRoot,
+      terminalSessionId
     });
     return NextResponse.json(result);
   } catch (error) {

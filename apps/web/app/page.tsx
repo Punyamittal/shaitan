@@ -319,6 +319,7 @@ export default function HomePage() {
         const res = await fetch("/agent/run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ prompt: p, mode: m, files, model }),
           ...(signal ? { signal } : {})
         });
@@ -528,36 +529,139 @@ export default function HomePage() {
         )}
       </header>
 
-      <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
-        <FileExplorerPanel
-          projectLabel={projectLabel}
-          hasRoot={Boolean(rootHandle)}
-          pickerSupported={pickerSupported}
-          rootEntries={rootEntries ?? null}
-          cache={cache}
-          expanded={expanded}
-          toggleExpand={toggleExpand}
-          selectedPath={activePath || null}
-          onSelectFile={(p) => void onSelectFile(p)}
-          onEnsureLoaded={onEnsureLoaded}
-          onOpenProject={onOpenProject}
-          onNewFile={onNewFile}
-          onDelete={onDelete}
-          onRefresh={onRefreshTree}
-        />
-
-        <EditorPanel
-          path={activeLangPath}
-          content={editorContent}
-          readOnly={!activePath}
-          onChange={(v) => {
-            if (!activePath) return;
-            setFileBodies((b) => ({ ...b, [activePath]: v }));
+      {/* Workbench: left column (explorer | editor + terminal) + full-height agent */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "row",
+          minHeight: 0,
+          overflow: "hidden",
+          alignItems: "stretch"
+        }}
+      >
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+            minHeight: 0,
+            overflow: "hidden"
           }}
-          onSave={onSave}
-          onApplyAi={onApplyAi}
-          canApplyAi={canApplyAi && Boolean(activePath)}
-        />
+        >
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "row",
+              minHeight: 0,
+              overflow: "hidden"
+            }}
+          >
+            <FileExplorerPanel
+              projectLabel={projectLabel}
+              hasRoot={Boolean(rootHandle)}
+              pickerSupported={pickerSupported}
+              rootEntries={rootEntries ?? null}
+              cache={cache}
+              expanded={expanded}
+              toggleExpand={toggleExpand}
+              selectedPath={activePath || null}
+              onSelectFile={(p) => void onSelectFile(p)}
+              onEnsureLoaded={onEnsureLoaded}
+              onOpenProject={onOpenProject}
+              onNewFile={onNewFile}
+              onDelete={onDelete}
+              onRefresh={onRefreshTree}
+            />
+
+            <EditorPanel
+              path={activeLangPath}
+              content={editorContent}
+              readOnly={!activePath}
+              onChange={(v) => {
+                if (!activePath) return;
+                setFileBodies((b) => ({ ...b, [activePath]: v }));
+              }}
+              onSave={onSave}
+              onApplyAi={onApplyAi}
+              canApplyAi={canApplyAi && Boolean(activePath)}
+            />
+          </div>
+
+          {rootHandle && (
+            <div
+              style={{
+                flexShrink: 0,
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 12px",
+                borderTop: "1px solid var(--ide-border)",
+                background: "var(--ide-bg-elevated)",
+                fontSize: 12
+              }}
+            >
+              <span style={{ fontWeight: 600, color: "var(--ide-fg)" }}>Terminal folder</span>
+              <input
+                type="text"
+                value={serverPathDraft}
+                onChange={(e) => {
+                  setServerPathDraft(e.target.value);
+                  setServerPathError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void applyServerPath();
+                }}
+                placeholder="Paste absolute path to this project (same folder as Open Project)"
+                spellCheck={false}
+                style={{
+                  flex: "1 1 220px",
+                  minWidth: 180,
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  border: "1px solid var(--ide-border)",
+                  background: "var(--ide-bg)",
+                  color: "var(--ide-fg)",
+                  fontSize: 12,
+                  fontFamily: "Consolas, 'Courier New', monospace"
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => void applyServerPath()}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "var(--color-ai-primary)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 600
+                }}
+              >
+                Apply
+              </button>
+              {serverPathError && (
+                <span style={{ color: "var(--color-error)", flex: "1 1 100%" }}>{serverPathError}</span>
+              )}
+              {serverWorkspaceRoot && !serverPathError && (
+                <span style={{ color: "var(--color-success)", fontSize: 11, flex: "1 1 100%" }}>
+                  Shell starts in: {serverWorkspaceRoot}
+                </span>
+              )}
+            </div>
+          )}
+
+          <TerminalPanel
+            key={`${workspaceEpoch}-${serverWorkspaceRoot ?? "off"}`}
+            workspaceLinked={Boolean(serverWorkspaceRoot)}
+            projectOpen={Boolean(rootHandle)}
+          />
+        </div>
 
         <AIPanel
           conversations={conversations}
@@ -579,78 +683,6 @@ export default function HomePage() {
           canRetry={Boolean(activeConversation?.lastRun)}
         />
       </div>
-
-      {rootHandle && (
-        <div
-          style={{
-            flexShrink: 0,
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            borderTop: "1px solid var(--ide-border)",
-            background: "var(--ide-bg-elevated)",
-            fontSize: 12
-          }}
-        >
-          <span style={{ fontWeight: 600, color: "var(--ide-fg)" }}>Terminal folder</span>
-          <input
-            type="text"
-            value={serverPathDraft}
-            onChange={(e) => {
-              setServerPathDraft(e.target.value);
-              setServerPathError(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void applyServerPath();
-            }}
-            placeholder="Paste absolute path to this project (same folder as Open Project)"
-            spellCheck={false}
-            style={{
-              flex: "1 1 220px",
-              minWidth: 180,
-              padding: "6px 10px",
-              borderRadius: 6,
-              border: "1px solid var(--ide-border)",
-              background: "var(--ide-bg)",
-              color: "var(--ide-fg)",
-              fontSize: 12,
-              fontFamily: "Consolas, 'Courier New', monospace"
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => void applyServerPath()}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 6,
-              border: "none",
-              background: "var(--color-ai-primary)",
-              color: "#fff",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: 600
-            }}
-          >
-            Apply
-          </button>
-          {serverPathError && (
-            <span style={{ color: "var(--color-error)", flex: "1 1 100%" }}>{serverPathError}</span>
-          )}
-          {serverWorkspaceRoot && !serverPathError && (
-            <span style={{ color: "var(--color-success)", fontSize: 11, flex: "1 1 100%" }}>
-              Shell starts in: {serverWorkspaceRoot}
-            </span>
-          )}
-        </div>
-      )}
-
-      <TerminalPanel
-        key={`${workspaceEpoch}-${serverWorkspaceRoot ?? "off"}`}
-        workspaceLinked={Boolean(serverWorkspaceRoot)}
-        projectOpen={Boolean(rootHandle)}
-      />
     </div>
   );
 }

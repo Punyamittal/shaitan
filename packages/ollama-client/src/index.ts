@@ -14,6 +14,23 @@ function resolveDefaultBaseUrl(): string {
   return "http://127.0.0.1:11434";
 }
 
+/** Concatenate assistant `message.content` from Ollama NDJSON stream lines (each line is small, valid JSON). */
+function aggregateChatStreamBody(raw: string): string {
+  let out = "";
+  for (const line of raw.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const obj = JSON.parse(t) as { message?: { content?: string } };
+      const c = obj.message?.content;
+      if (typeof c === "string" && c.length > 0) out += c;
+    } catch {
+      /* skip corrupt line */
+    }
+  }
+  return out;
+}
+
 export class OllamaClient {
   private readonly baseUrl: string;
 
@@ -28,7 +45,7 @@ export class OllamaClient {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: req.model,
-        stream: false,
+        stream: true,
         format: req.format,
         options: { temperature: req.temperature ?? 0.2 },
         messages: req.messages
@@ -50,7 +67,21 @@ export class OllamaClient {
           : "";
       throw new Error(`Ollama chat failed: ${res.status} ${res.statusText}${detail}${hint}`);
     }
-    const data = JSON.parse(rawText) as { message?: { content?: string } };
-    return data.message?.content ?? "";
+
+    const streamed = aggregateChatStreamBody(rawText);
+    if (streamed.length > 0) {
+      return streamed;
+    }
+
+    try {
+      const data = JSON.parse(rawText) as { message?: { content?: string } };
+      return data.message?.content ?? "";
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(
+        `Ollama response JSON parse failed (${msg}). ` +
+          "If the model produced a very large reply, ensure Ollama returns a streamed NDJSON body (stream: true)."
+      );
+    }
   }
 }

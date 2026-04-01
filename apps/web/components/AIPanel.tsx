@@ -114,15 +114,20 @@ export function AIPanel({
 
   return (
     <section
+      data-ide-ai-panel
       style={{
         width: "var(--panel-ai-width)",
         minWidth: 300,
         maxWidth: 520,
+        flexShrink: 0,
+        alignSelf: "stretch",
+        height: "100%",
         borderLeft: "1px solid var(--ide-border)",
         background: "var(--ide-bg)",
         display: "flex",
         flexDirection: "column",
-        minHeight: 0
+        minHeight: 0,
+        overflow: "hidden"
       }}
     >
       {/* Header */}

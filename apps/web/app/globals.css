@@ -46,7 +46,8 @@ body {
 
   --panel-explorer-width: min(280px, 32vw);
   --panel-ai-width: min(400px, 36vw);
-  --panel-terminal-height: 200px;
+  /* Fixed strip under explorer+editor only (~Tailwind h-40) */
+  --panel-terminal-height: 10rem;
 }
 
 button {
@@ -54,10 +55,15 @@ button {
   color: inherit;
 }
 
-/* xterm hides its input with 0×0; some Chromium builds won’t keep focus/typing working. */
+/*
+ * xterm hides the helper textarea at left:-9999em; ancestor overflow:hidden clips it so
+ * focus/IME break. Pin position in-bounds only — do NOT override width/height: CoreBrowserTerminal
+ * _syncTextArea() sets cell-sized dimensions and needs those for correct input handling.
+ */
 .ide-terminal-host .xterm .xterm-helper-textarea {
-  width: 1px !important;
-  height: 1px !important;
-  min-width: 1px !important;
-  min-height: 1px !important;
+  left: 0 !important;
+  top: 0 !important;
+  opacity: 0 !important;
+  z-index: 20 !important;
+  pointer-events: auto !important;
 }

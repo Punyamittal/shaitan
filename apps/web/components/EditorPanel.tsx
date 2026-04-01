@@ -39,8 +39,13 @@ export function EditorPanel({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const el = e.target;
-      if (el instanceof Element && el.closest(".xterm")) {
+      const ae = document.activeElement;
+      if (
+        ae instanceof Element &&
+        (ae.closest(".xterm") ||
+          ae.closest(".ide-terminal-host") ||
+          ae.closest("[data-ide-ai-panel]"))
+      ) {
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -48,8 +53,8 @@ export function EditorPanel({
         onSave();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onSave]);
 
   const openFind = () => {

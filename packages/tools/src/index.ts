@@ -4,4 +4,5 @@ export { FileWriteTool } from "./tools/file-write-tool";
 export { FileEditTool } from "./tools/file-edit-tool";
 export { GrepTool } from "./tools/grep-tool";
 export { BashTool } from "./tools/bash-tool";
+export { TerminalTool } from "./tools/terminal-tool";
 export { ToolRegistry } from "./tool-registry";

@@ -110,6 +110,10 @@ function createPty(cwd) {
 
 const wss = new WebSocketServer({ noServer: true });
 
+/** @type {Map<string, import('node-pty').IPty>} */
+const ptyBySession =
+  (globalThis.__localAiIdePtyBySession ??= new Map());
+
 wss.on("connection", (ws, req) => {
   const sessionId = getCookie(req, "ide-session") ?? randomUUID();
   const cwd = resolveShellCwd(sessionId);
@@ -122,11 +126,14 @@ wss.on("connection", (ws, req) => {
     return;
   }
 
+  ptyBySession.set(sessionId, term);
+
   term.onData((data) => {
     if (ws.readyState === 1) ws.send(data);
   });
 
   term.onExit(({ exitCode, signal }) => {
+    ptyBySession.delete(sessionId);
     if (ws.readyState === 1) {
       const sig = signal != null ? ` signal ${signal}` : "";
       ws.send(`\r\n\x1b[90m[Process exited code ${exitCode}${sig}]\x1b[0m\r\n`);
@@ -158,6 +165,7 @@ wss.on("connection", (ws, req) => {
   });
 
   ws.on("close", () => {
+    ptyBySession.delete(sessionId);
     try {
       term.kill();
     } catch {
