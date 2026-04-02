@@ -107,11 +107,11 @@ export function TerminalPanel({
     });
 
     // Track “user is using the terminal” vs rest of IDE (for keyboard fallback).
+    // Treat the whole panel (toolbar + xterm) as terminal UI so toolbar clicks still enable typing.
     const onDocMouseDownCapture = (e: MouseEvent) => {
       const t = e.target;
       if (!(t instanceof Node)) return;
-      if (container.contains(t)) surfaceActiveRef.current = true;
-      else if (host && !host.contains(t)) surfaceActiveRef.current = false;
+      surfaceActiveRef.current = Boolean(host?.contains(t));
     };
 
     // Only on the xterm mount node (not the toolbar): blur anything that still owns focus
@@ -145,7 +145,8 @@ export function TerminalPanel({
         ae === null ||
         ae === document.body ||
         ae === document.documentElement;
-      if (!monacoFocused && !nowhereFocused) return;
+      // After clicking the terminal, Monaco can still own focus; route keys to the PTY anyway.
+      if (!surfaceActiveRef.current && !monacoFocused && !nowhereFocused) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
         e.preventDefault();
@@ -204,6 +205,7 @@ export function TerminalPanel({
       wsRef.current = ws;
 
       ws.onopen = () => {
+        surfaceActiveRef.current = true;
         term.writeln("\x1b[90mShell in your linked project folder (PTY).\x1b[0m\r\n");
         sendResize();
         requestAnimationFrame(() => focusXterm(term));

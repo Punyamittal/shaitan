@@ -523,7 +523,7 @@ export default function HomePage() {
           justifyContent: "space-between"
         }}
       >
-        <span>Local AI IDE</span>
+        <span>Shaitan</span>
         {toast && (
           <span style={{ color: "var(--color-success)", fontSize: 12, fontWeight: 500 }}>{toast}</span>
         )}

@@ -54,6 +54,20 @@ function pickListenPort() {
 
 cleanIncompleteNextDir(__dirname);
 
+/**
+ * In dev, default the server-side workspace (PTY cwd, agent fs) to the directory where
+ * `node server.mjs` runs so the in-app shell connects immediately without pasting a path.
+ * Cleared roots (DELETE /api/workspace) stay null until the user POSTs again.
+ */
+function ensureDevDefaultWorkspaceRoot() {
+  if (!dev) return;
+  const g = globalThis;
+  if (g.__localAiIdeOpenedRoot != null) return;
+  g.__localAiIdeOpenedRoot = path.resolve(process.cwd());
+}
+
+ensureDevDefaultWorkspaceRoot();
+
 /** @param {import('http').IncomingMessage} req */
 function getCookie(req, name) {
   const raw = req.headers.cookie;

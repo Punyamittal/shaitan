@@ -16,4 +16,8 @@ export class ToolRegistry {
     if (!tool) throw new Error(`Unknown tool: ${name}`);
     return tool;
   }
+
+  has(name: string): boolean {
+    return this.tools.has(name);
+  }
 }

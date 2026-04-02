@@ -397,6 +397,23 @@ export function AIPanel({
         {modelsError && (
           <div style={{ fontSize: 11, color: "var(--color-warning)" }}>Models: {modelsError}</div>
         )}
+        {selectedModel && (selectedModel.includes("phi3") || selectedModel.includes("phi4")) && (
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--color-warning)",
+              lineHeight: 1.4,
+              padding: "6px 8px",
+              background: "rgba(255,193,7,0.08)",
+              border: "1px solid rgba(255,193,7,0.2)",
+              borderRadius: 6
+            }}
+          >
+            ⚠ <strong>{selectedModel}</strong> may not follow the agent JSON schema reliably. For better tool use
+            and file editing, try <strong>qwen2.5:7b</strong>, <strong>llama3.1:8b</strong>, or{" "}
+            <strong>deepseek-coder:6.7b</strong> (run <code style={{ fontSize: 10 }}>ollama pull MODEL</code> first).
+          </div>
+        )}
         <textarea
           rows={3}
           placeholder="Plan, search, explain, or request edits… (@ for context in a future update)"

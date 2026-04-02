@@ -5,7 +5,7 @@ import type { FileCandidate } from "@local-ai-ide/vectorless-engine";
 import { NextResponse } from "next/server";
 import { getOpenedWorkspaceRoot } from "@/lib/opened-workspace";
 import { listWorkspaceRelativeFiles } from "@/lib/workspace-file-index";
-import { AgentCore } from "@local-ai-ide/agent";
+import { AgentCore, DEFAULT_AGENT_MAX_STEPS } from "@local-ai-ide/agent";
 import { McpClientRegistry } from "@local-ai-ide/mcp-client";
 import { OllamaClient } from "@local-ai-ide/ollama-client";
 import { SkillLoader } from "@local-ai-ide/skills-runtime";
@@ -70,12 +70,29 @@ async function vectorlessCandidatesForWorkspace(root: string): Promise<FileCandi
   return out;
 }
 
+const MAX_STEPS_CAP = 100;
+const MAX_STEPS_FLOOR = 4;
+
+function resolveAgentMaxSteps(body: { maxSteps?: unknown }): number {
+  const envParsed = parseInt(process.env.AGENT_MAX_STEPS ?? "", 10);
+  const fromEnv =
+    Number.isFinite(envParsed) && envParsed >= MAX_STEPS_FLOOR
+      ? Math.min(MAX_STEPS_CAP, envParsed)
+      : DEFAULT_AGENT_MAX_STEPS;
+  const req = body.maxSteps;
+  if (typeof req === "number" && Number.isFinite(req)) {
+    return Math.min(MAX_STEPS_CAP, Math.max(MAX_STEPS_FLOOR, Math.floor(req)));
+  }
+  return fromEnv;
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
       prompt: string;
       mode?: string;
       model?: string;
+      maxSteps?: number;
       files?: { path: string; content: string }[];
     };
     let composed = body.prompt ?? "";
@@ -114,6 +131,16 @@ export async function POST(req: Request) {
     const model =
       /^[\w.+\-/:]+$/.test(requested) && requested.length <= 200 ? requested : envModel;
 
+    const weakModels = ["phi3", "phi4", "gemma3:4b", "tinyllama", "orca-mini"];
+    const isWeak = weakModels.some((w) => model.toLowerCase().includes(w));
+    if (isWeak) {
+      console.warn(
+        `[@local-ai-ide/agent] Model "${model}" may not follow agent JSON schema reliably. ` +
+          "For autonomous file editing and terminal commands, use qwen2.5:7b, deepseek-coder:6.7b, or llama3.1:8b. " +
+          "Run: ollama pull qwen2.5:7b"
+      );
+    }
+
     const ollama = new OllamaClient();
     const tools = new ToolRegistry();
     tools.register(new FileReadTool());
@@ -146,10 +173,13 @@ export async function POST(req: Request) {
     const cookieStore = await cookies();
     const terminalSessionId = cookieStore.get("ide-session")?.value ?? null;
 
+    const maxSteps = resolveAgentMaxSteps(body);
+
     const result = await agent.run({
       userPrompt: composed,
       cwd: workspaceRoot,
-      terminalSessionId
+      terminalSessionId,
+      maxSteps
     });
     return NextResponse.json(result);
   } catch (error) {

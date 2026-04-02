@@ -40,6 +40,7 @@ export class OllamaClient {
   }
 
   async chat(req: OllamaChatRequest): Promise<string> {
+    const temp = req.temperature ?? 0.1;
     const res = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -47,7 +48,7 @@ export class OllamaClient {
         model: req.model,
         stream: true,
         format: req.format,
-        options: { temperature: req.temperature ?? 0.2 },
+        options: { temperature: temp },
         messages: req.messages
       })
     });

@@ -158,15 +158,79 @@ npm install
 npm run dev:web
 ```
 
+## Model Recommendations
+
+The agent's ability to autonomously edit files and run terminal commands depends heavily on the Ollama model you use. **Not all models can follow the structured JSON format reliably.**
+
+### ✅ Recommended Models (Autonomous Tool Use)
+These models can reliably parse instructions, use tools, edit files, and run terminal commands:
+
+- **`qwen2.5:7b`** - Best balance of speed and capability for coding tasks
+- **`deepseek-coder:6.7b`** - Excellent for code editing and terminal commands  
+- **`llama3.1:8b`** - Strong general-purpose reasoning and tool use
+- **`qwen2.5-coder:7b`** - Specialized for code generation and refactoring
+
+Install with: `ollama pull qwen2.5:7b`
+
+### ⚠️ Limited Models (May Struggle with Tools)
+These models work for simple tasks but often produce malformed JSON or ignore tool schemas:
+
+- **`phi3:mini`** - Too small, frequently returns invalid JSON
+- **`phi4:mini`** - Better than phi3 but still unreliable for complex tasks
+- **`qwen3:4b`** - Works for basic tasks but may fail on multi-step workflows
+- **`gemma3:4b`** - Similar limitations to qwen3:4b
+
+### 🚀 Advanced Models (Best Performance)
+For complex multi-file refactoring and sophisticated reasoning:
+
+- **`qwen2.5:14b`** or **`qwen2.5:32b`** (requires more RAM)
+- **`llama3.3:70b`** (requires 40GB+ RAM, best overall quality)
+- **`deepseek-coder-v2:16b`**
+
 Set optional env vars (e.g. in `apps/web/.env.local`):
 
 ```bash
-# Must match a model you have pulled (`ollama list`). Default is qwen3:4b.
-# Examples: qwen3:4b, llama3.2, llama3.2:3b, llava, mistral, phi3:mini, gemma3:4b
-OLLAMA_MODEL=llama3.2
+# Recommended: Use a 7B+ model for reliable autonomous tool use
+OLLAMA_MODEL=qwen2.5:7b
+
+# Other good options:
+# OLLAMA_MODEL=deepseek-coder:6.7b
+# OLLAMA_MODEL=llama3.1:8b
+# OLLAMA_MODEL=qwen2.5-coder:7b
+
+# ⚠️ NOT recommended for agent tasks (too small/unreliable):
+# OLLAMA_MODEL=phi3:mini
+# OLLAMA_MODEL=phi4:mini
+# OLLAMA_MODEL=qwen3:4b
+
 # If Ollama listens elsewhere (e.g. Docker):
 # OLLAMA_BASE_URL=http://127.0.0.1:11434
+
+# Agent step limit (default 64, max 100):
+# AGENT_MAX_STEPS=80
 ```
 
 If you see **`404 Not Found`** from Ollama while the daemon is running, the **model name is wrong or not installed** — not a dead server. Run `ollama pull <name>` or set `OLLAMA_MODEL` to a model from `ollama list`.
+
+## Troubleshooting
+
+### Agent returns garbage or "Missing `action`" errors
+- **Cause**: Model is too small to follow the JSON schema (common with `phi3:mini`, `phi4:mini`)
+- **Fix**: Switch to a recommended model like `qwen2.5:7b` or `deepseek-coder:6.7b`
+  ```bash
+  ollama pull qwen2.5:7b
+  # Then set in .env.local or select in UI
+  ```
+
+### Agent hits step limit (64 steps)
+- **Cause**: Model keeps calling tools without finishing, or task is very complex
+- **Fix**: Raise limit via `AGENT_MAX_STEPS=100` in `.env.local`, or break task into smaller requests
+
+### Terminal not connecting / "Not connected to shell"
+- **Cause**: Workspace path not set (dev mode now auto-sets on startup)
+- **Fix**: Refresh the page; terminal should auto-connect. If not, paste workspace path and click Apply.
+
+### Agent can't type commands / terminal unresponsive
+- **Cause**: Focus handling bug (now fixed)
+- **Fix**: Click anywhere in the terminal panel; keyboard should route to shell immediately.
 # shaitan
