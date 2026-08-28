@@ -1,3 +1,31 @@
+![Project Banner](docs/readme-agent/banner.svg)
+
+# AI Agent Development Monorepo
+
+A monorepo containing a Next.js web application and various internal packages for building AI agents, including tools, template engines, and communication clients.
+
+## Overview
+
+This repository is structured as a monorepo using workspaces, managing multiple related applications and libraries. The core functionality revolves around building and executing AI agents. The web application (`apps/web`) serves as the primary user interface, while internal packages handle specialized logic such as tool definitions, template rendering, and communication with external services like Ollama.
+
+## Key Features
+
+- Web UI for AI Agent interaction (Next.js)
+- Tool definition and management (using `@local-ai-ide/tools`)
+- Template rendering engine for prompt construction (using `@local-ai-ide/template-engine`)
+- Ollama client integration for local LLM communication (using `@local-ai-ide/ollama-client`)
+- Agent orchestration logic (using `@local-ai-ide/agent`)
+- Shared TypeScript types across all packages (using `@local-ai-ide/shared-types`)
+
+## Technology Stack
+
+- TypeScript
+- Next.js
+- React
+- Node.js
+- Zod
+- Ollama
+
 # 1. 🧭 HIGH LEVEL DESIGN (HLD)
 
 See [`docs/HLD.md`](docs/HLD.md) for the full architecture and flow.
@@ -234,3 +262,123 @@ If you see **`404 Not Found`** from Ollama while the daemon is running, the **mo
 - **Cause**: Focus handling bug (now fixed)
 - **Fix**: Click anywhere in the terminal panel; keyboard should route to shell immediately.
 # shaitan
+
+## Setup Guide
+
+### Frontend Setup
+
+```bash
+cd apps/web
+npm install
+npm run dev     # development
+npm run build && npm start   # production
+```
+
+Open `http://127.0.0.1:3000` (or the port shown in the terminal).
+
+### Running the Application
+
+1. **Start web app** — `npm run dev` in `apps/web/`
+
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+## System Architecture
+
+High-level system design, data flows, API map, and workflow pipelines derived from the repository structure.
+
+### System Architecture
+
+```mermaid
+graph TB
+    subgraph Client["Client Layer"]
+        user["User / Operator"]
+        api_client["API / CLI Client"]
+    end
+
+    subgraph Core["shaitan/ — Application Core"]
+    end
+
+    subgraph Data["Data & Artifacts"]
+        d0["apps/web/package.json"]
+        d1["apps/web/tsconfig.json"]
+        d2["config/sources.json"]
+        d3["package.json"]
+    end
+
+    subgraph Charts["Metrics & Dashboard Charts"]
+        page_views["Page views chart"]
+        nav_sections["Navigation sections map"]
+        project_showcase["Project showcase grid"]
+        skills_timeline["Skills & experience timeline"]
+        contact_funnel["Contact conversion funnel"]
+        media_gallery["Media & assets gallery"]
+    end
+
+    user --> api_client
+    api_client --> Core
+    user -->|Web UI| dashboard_kpis
+    Core --> page_views
+    page_views --> user
+```
+
+### Data Flow & Charts Pipeline
+
+```mermaid
+flowchart LR
+    U["User / Event"] --> IN["Untrusted Input"]
+
+    subgraph Pipeline["Processing Pipeline"]
+        p0["Input"]
+        p1["Processing"]
+        p2["Output"]
+        p0 --> p1
+        p1 --> p2
+    end
+
+    subgraph Metrics["Metrics & Chart Feeds"]
+        page_views["Page views chart"]
+        nav_sections["Navigation sections map"]
+        project_showcase["Project showcase grid"]
+        skills_timeline["Skills & experience timeline"]
+        contact_funnel["Contact conversion funnel"]
+        media_gallery["Media & assets gallery"]
+    end
+
+    IN --> p0
+    p2 --> OUT["Authorized Output"]
+    OUT --> U
+    p2 --> page_views
+    page_views --> U
+```
+
+### Component & API Map
+
+```mermaid
+graph LR
+    subgraph App["Application Components"]
+        main["main<br/>Main"]
+    end
+```
+
+### Application Page Map
+
+```mermaid
+mindmap
+  root((Shaitan))
+    Pages
+      Page.Tsx
+```
+
+## Application Pages
+
+Screenshots captured from the running application. Each page is listed with its function.
+
+#### Home
+
+Application page at `/`
+
+![Home](docs/readme-agent/pages/dashboard.png)
