@@ -295,72 +295,82 @@ High-level system design, data flows, API map, and workflow pipelines derived fr
 ```mermaid
 graph TB
     subgraph Client["Client Layer"]
-        user["User / Operator"]
-        api_client["API / CLI Client"]
+        user["User"]
+        browser["Browser / Client"]
     end
 
-    subgraph Core["shaitan/ — Application Core"]
+    subgraph Core["Shaitan — Web App"]
+        page_tsx["Page.Tsx<br/>/page.tsx"]
+        AIPanel["AIPanel<br/>Component"]
+        EditorPanel["EditorPanel<br/>Component"]
+        FileExplorerPanel["FileExplorerPanel<br/>Component"]
+        MonacoPanel["MonacoPanel<br/>Component"]
+        TerminalPanel["TerminalPanel<br/>Component"]
     end
 
     subgraph Data["Data & Artifacts"]
-        d0["apps/web/package.json"]
-        d1["apps/web/tsconfig.json"]
-        d2["config/sources.json"]
+        d0["package.json"]
+        d1["tsconfig.json"]
+        d2["sources.json"]
         d3["package.json"]
     end
 
-    subgraph Charts["Metrics & Dashboard Charts"]
-        page_views["Page views chart"]
-        nav_sections["Navigation sections map"]
-        project_showcase["Project showcase grid"]
-        skills_timeline["Skills & experience timeline"]
-        contact_funnel["Contact conversion funnel"]
-        media_gallery["Media & assets gallery"]
+    subgraph Charts["shaitan — Metrics & Views"]
+        page_tsx["Page.Tsx page"]
+        apps["apps/ module"]
+        config["config/ module"]
+        docs["docs/ module"]
+        packages["packages/ module"]
+        skills["skills/ module"]
     end
 
-    user --> api_client
-    api_client --> Core
-    user -->|Web UI| dashboard_kpis
-    Core --> page_views
-    page_views --> user
+    user --> browser
+    browser --> page_tsx
+    page_tsx --> user
 ```
 
 ### Data Flow & Charts Pipeline
 
 ```mermaid
 flowchart LR
-    U["User / Event"] --> IN["Untrusted Input"]
+    U["User / Event"] --> IN["User Action"]
 
-    subgraph Pipeline["Processing Pipeline"]
-        p0["Input"]
-        p1["Processing"]
-        p2["Output"]
+    subgraph Pipeline["shaitan App Flow"]
+        p0["Page.Tsx"]
+        p1["Aipanel"]
+        p2["Editorpanel"]
+        p3["Fileexplorerpanel"]
+        p4["Monacopanel"]
+        p5["Terminalpanel"]
         p0 --> p1
         p1 --> p2
+        p2 --> p3
+        p3 --> p4
+        p4 --> p5
     end
 
-    subgraph Metrics["Metrics & Chart Feeds"]
-        page_views["Page views chart"]
-        nav_sections["Navigation sections map"]
-        project_showcase["Project showcase grid"]
-        skills_timeline["Skills & experience timeline"]
-        contact_funnel["Contact conversion funnel"]
-        media_gallery["Media & assets gallery"]
+    subgraph Metrics["shaitan — Views & Metrics"]
+        page_tsx["Page.Tsx page"]
+        apps["apps/ module"]
+        config["config/ module"]
+        docs["docs/ module"]
+        packages["packages/ module"]
+        skills["skills/ module"]
     end
 
     IN --> p0
-    p2 --> OUT["Authorized Output"]
+    p5 --> OUT["UI Response"]
     OUT --> U
-    p2 --> page_views
-    page_views --> U
+    p5 --> page_tsx
+    page_tsx --> U
 ```
 
 ### Component & API Map
 
 ```mermaid
 graph LR
-    subgraph App["Application Components"]
-        main["main<br/>Main"]
+    subgraph App["shaitan Components"]
+        page_tsx["Page.Tsx<br/>/page.tsx"]
     end
 ```
 
@@ -381,4 +391,4 @@ Screenshots captured from the running application. Each page is listed with its 
 
 Application page at `/`
 
-![Home](docs/readme-agent/pages/dashboard.png)
+![Home](docs/readme-agent/pages/home.png)
